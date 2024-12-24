@@ -1,0 +1,17 @@
+Windows Registry Editor Version 5.00
+
+; Tilføj Sweetspot Data Håndtering til Windows' liste over installerede programmer
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SweetspotData]
+"DisplayName"="Sweetspot Data Håndtering"
+"DisplayVersion"="1.0"
+"Publisher"="Jonas"
+"InstallDate"=dword:20240927
+"UninstallString"="C:\\Program Files\\SweetspotData\\uninstall.exe"
+"InstallLocation"="C:\\Program Files\\SweetspotData"
+"DisplayIcon"="C:\\Program Files\\SweetspotData\\sweetspot_logo.ico"
+"EstimatedSize"=dword:00032000  ; størrelse i KB
+
+; Tilføj evt. ekstra konfigurationsindstillinger her
+[HKEY_CURRENT_USER\Software\SweetspotData]
+"UserSetting1"="true"
+"UserSetting2"="custom_value"
