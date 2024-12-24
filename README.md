@@ -14,10 +14,12 @@
 - [Licens](#licens)
 
 ## Overblik
-Sweetspot Data Håndtering er et specialudviklet program til Nordisk Film Biografer, designet til at håndtere og spore produktdata med særligt fokus på udløbsdatoer. Programmet muliggør nem import af data fra PDF-filer, lokal databasehåndtering og automatisk synkronisering med Dropbox.
+Sweetspot Data Håndtering er et specialudviklet program til Nordisk Film Biografer, designet til at håndtere og spore produktdata med særligt fokus på udløbsdatoer. Programmet muliggør nem import af data fra PDF-filer og billeder, lokal databasehåndtering og automatisk synkronisering med Dropbox.
 
 ## Funktioner
-- **PDF Import**: Automatisk udtrækning af produktdata fra PDF-filer
+- **Data Import**: 
+  - Automatisk udtrækning af produktdata fra PDF-filer
+  - Vision AI scanning af håndskrevne udløbsdatolister
 - **Databaser**: Lokal SQLite database med automatisk backup
 - **Dropbox Integration**: Automatisk synkronisering med cloud storage
 - **Brugervenlig GUI**: Intuitiv grafisk brugerflade med:
@@ -25,12 +27,18 @@ Sweetspot Data Håndtering er et specialudviklet program til Nordisk Film Biogra
   - Sortering af data
   - Farvekodning af udløbsdatoer
   - Kontekstmenuer til hurtig redigering
+  - Progress bar for alle operationer
 - **Data Administration**:
   - Tilføj nye produkter manuelt
   - Rediger eksisterende produkter
   - Slet produkter
   - Fortryd-funktion for alle handlinger
-- **Automatisk E-mail Rapport**: Daglig e-mail med udløbende produkter
+  - Ryd eller nulstil database med automatisk backup
+- **Vision AI Integration**:
+  - Scan håndskrevne udløbsdatolister
+  - Automatisk genkendelse af produktnavne og datoer
+  - Intelligent datoformatering
+  - Høj præcision billedanalyse
 - **Sikkerhedskopiering**: Automatisk backup før kritiske operationer
 
 ## Systemkrav
@@ -48,6 +56,11 @@ Sweetspot Data Håndtering er et specialudviklet program til Nordisk Film Biogra
 3. Følg installationsguiden
 4. Programmet installeres som standard i `%localappdata%\Sweetspot Data Håndtering`
 5. En genvej oprettes på skrivebordet (valgfrit)
+
+4. Konfigurer OpenAI API nøgle:
+   - Opret `.env` fil i installationsmappen
+   - Tilføj `OPENAI_API_KEY=din-api-nøgle`
+   - Eller brug den indbyggede API nøgle dialog
 
 ### Udviklingsinstallation
 1. Klon repository:
@@ -73,6 +86,15 @@ pip install -r requirements.txt
 1. Start programmet via genvejen eller den installerede .exe fil
 2. Programmet opretter automatisk nødvendige mapper i Documents
 3. Der oprettes en tom database hvis ingen eksisterende findes
+
+### Vision AI Scanning
+1. Klik på "Upload Udløbsdatoliste (Billede)" i Fil-menuen
+2. Vælg et billede af en håndskrevet udløbsdatoliste
+3. Vent mens Vision AI analyserer billedet:
+   - Progress bar viser fremskridt
+   - Statuslinje viser aktuel handling
+4. Kontroller de scannede data i tabellen
+5. Brug Fortryd hvis nødvendigt
 
 ### PDF Import
 1. Klik på "Upload PDF-fil"
@@ -115,13 +137,20 @@ pip install -r requirements.txt
 
 ## Sikkerhed
 - Krypterede Dropbox credentials
+- Sikker håndtering af OpenAI API nøgle
 - Automatisk backup før kritiske operationer
-- Sikker SSL/TLS kommunikation med Dropbox
+- Sikker SSL/TLS kommunikation
 - Lokal database med begrænset adgang
 
 ## Fejlfinding
 
 ### Almindelige problemer
+
+#### Vision AI scanning fejler
+- Kontroller OpenAI API nøgle i .env fil
+- Verificer at billedet er læsbart og under 20MB
+- Check internetforbindelse
+- Se logfil for detaljerede fejlbeskeder
 
 #### PDF Import fejler
 - Kontroller at PDF'en ikke er beskyttet
@@ -161,7 +190,7 @@ pyinstaller sweetspot_app.spec
 - `config.py`: Konfiguration og konstanter
 - `crypt.py`: Krypteringsfunktioner
 - `secure_dropbox_auth.py`: Dropbox authentication
-- `daily-email-report.py`: E-mail rapport system
+- `.env`: Miljøvariabler og API nøgler
 
 ## Licens
 © 2024 Nordisk Film Biografer. Alle rettigheder forbeholdes.
