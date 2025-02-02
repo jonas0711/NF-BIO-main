@@ -8,9 +8,9 @@ from datetime import datetime
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QPushButton, QFileDialog, QVBoxLayout, QWidget,
                              QProgressBar, QMessageBox, QLineEdit, QTableView, QHBoxLayout,
                              QLabel, QComboBox, QMenu, QAction, QDialog, QFormLayout, QHeaderView,
-                             QStyle, QToolTip, QStatusBar, QStyledItemDelegate, QMenuBar)
+                             QStyle, QToolTip, QStatusBar, QStyledItemDelegate, QMenuBar, QScrollArea)
 from PyQt5.QtCore import (QThread, pyqtSignal, Qt, QSortFilterProxyModel, QDate, QEvent,
-                          QStandardPaths, QUrl)
+                          QStandardPaths, QUrl, QTimer)
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QColor, QBrush, QIcon, QFontMetrics, QDesktopServices
 import fitz
 import re
@@ -401,6 +401,7 @@ class TruncatedItemDelegate(QStyledItemDelegate):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        # Konfigurerer vinduets ikon, titel, geometri osv.
         self.setWindowIcon(QIcon(resource_path('sweetspot_logo.ico')))
         self.setWindowTitle(config.WINDOW_TITLE)
         self.setGeometry(100, 100, config.WINDOW_WIDTH, config.WINDOW_HEIGHT)
@@ -413,58 +414,14 @@ class MainWindow(QMainWindow):
         self.model = QStandardItemModel()
         self.threads = []
 
-        self.setup_ui()
+        # Menu bar oprettes allerede i setup_ui()
+        self.setup_ui()               # Her oprettes menulinjen inklusive "Fil" menuen
         self.set_style()
-
         self.initialize_database()
         self.ensure_local_database()
         self.load_existing_data()
         self.initialize_dropbox_client()
         self.undo_stack = []
-
-        # Opret menu bar
-        menu_bar = self.menuBar()
-        
-        # Opret Fil menu
-        file_menu = menu_bar.addMenu("Fil")
-        
-        # Opret Upload undermenu
-        upload_menu = QMenu("Upload", self)
-        
-        # Upload PDF action med system ikon
-        upload_pdf_action = QAction("Upload PDF-fil", self)
-        upload_pdf_action.setIcon(self.style().standardIcon(QStyle.SP_FileIcon))  # Brug system PDF ikon
-        upload_pdf_action.setStatusTip("Upload og analyser en PDF-fil")
-        upload_pdf_action.triggered.connect(self.handle_pdf_upload)
-        
-        # Upload billede action med system ikon
-        upload_image_action = QAction("Upload Udløbsdatoliste (Billede)", self)
-        upload_image_action.setIcon(self.style().standardIcon(QStyle.SP_DirIcon))  # Brug system billede ikon
-        upload_image_action.setStatusTip("Upload og analyser et billede af en udløbsdatoliste")
-        upload_image_action.triggered.connect(self.handle_image_upload)
-        
-        # Tilføj upload actions til upload menu
-        upload_menu.addAction(upload_pdf_action)
-        upload_menu.addAction(upload_image_action)
-        
-        # Tilføj upload menu til fil menu
-        file_menu.addMenu(upload_menu)
-        
-        # Tilføj separator
-        file_menu.addSeparator()
-        
-        # Database actions
-        clear_db_action = QAction("Ryd Database", self)
-        clear_db_action.setStatusTip("Ryd hele databasen (opretter backup først)")
-        clear_db_action.triggered.connect(self.clear_database)
-        
-        create_empty_db_action = QAction("Opret Tom Database", self)
-        create_empty_db_action.setStatusTip("Opret en ny tom database")
-        create_empty_db_action.triggered.connect(self.create_new_empty_database)
-        
-        # Tilføj database actions til fil menu
-        file_menu.addAction(clear_db_action)
-        file_menu.addAction(create_empty_db_action)
 
     def get_column_index(self, column_name):
         for col in range(self.model.columnCount()):
@@ -716,6 +673,48 @@ class MainWindow(QMainWindow):
         self.table_view.horizontalHeader().sectionClicked.connect(self.sort_table)
 
         self.statusBar().showMessage("Klar")
+
+        # Tilføj Upload-undermenu til Fil-menuen
+        # Opret en undermenu til upload-funktioner
+        upload_menu = QMenu("Upload", self)
+        
+        # Upload PDF action: Denne funktionalitet tillader upload og analyse af en PDF-fil
+        upload_pdf_action = QAction("Upload PDF-fil", self)
+        upload_pdf_action.setIcon(self.style().standardIcon(QStyle.SP_FileIcon))  # Brug system PDF ikon
+        upload_pdf_action.setStatusTip("Upload og analyser en PDF-fil")
+        upload_pdf_action.triggered.connect(self.handle_pdf_upload)
+        upload_menu.addAction(upload_pdf_action)
+        
+        # Upload billede action: Denne funktionalitet tillader upload og analyse af et billede af en udløbsdatoliste
+        upload_image_action = QAction("Upload Udløbsdatoliste (Billede)", self)
+        upload_image_action.setIcon(self.style().standardIcon(QStyle.SP_DirIcon))  # Brug system billede ikon
+        upload_image_action.setStatusTip("Upload og analyser et billede af en udløbsdatoliste")
+        upload_image_action.triggered.connect(self.handle_image_upload)
+        upload_menu.addAction(upload_image_action)
+        
+        # Tilføj Upload-undermenuen til Fil-menuen
+        file_menu.addMenu(upload_menu)
+        # Tilføj en separator for at adskille upload-funktionerne fra database-handlingerne
+        file_menu.addSeparator()
+        
+        # Database-handlings actions:
+        # Action for at rydde hele databasen. Backup oprettes først for sikkerhed.
+        clear_db_action = QAction("Ryd Database", self)
+        clear_db_action.setStatusTip("Ryd hele databasen (opretter backup først)")
+        clear_db_action.triggered.connect(self.clear_database)
+        file_menu.addAction(clear_db_action)
+        
+        # Action for at oprette en ny, tom database. Først laves der backup af den nuværende database.
+        create_empty_db_action = QAction("Opret Tom Database", self)
+        create_empty_db_action.setStatusTip("Opret en ny tom database")
+        create_empty_db_action.triggered.connect(self.create_new_empty_database)
+        file_menu.addAction(create_empty_db_action)
+
+        # Tilføj nedenfor en ny action til Multi-upload:
+        multi_upload_action = QAction("Upload Flere Filer", self)
+        multi_upload_action.setToolTip("Upload flere filer i kø")
+        multi_upload_action.triggered.connect(self.upload_multiple)
+        file_menu.addAction(multi_upload_action)
 
     def open_log_folder(self):
         log_dir = get_app_data_dir()
@@ -1617,7 +1616,7 @@ class MainWindow(QMainWindow):
                 processor = PDFProcessor(file_path, self.db_path)
                 processor.progress.connect(self.update_progress)
                 processor.status.connect(self.update_status)
-                processor.finished.connect(self.on_pdf_processing_finished)
+                processor.finished.connect(lambda it=processor: self.on_pdf_processing_finished(it))
                 processor.error.connect(self.show_error_message)
                 
                 # Gem tråden så den ikke bliver garbage collected
@@ -1645,7 +1644,7 @@ class MainWindow(QMainWindow):
         """Vis fejlbesked"""
         QMessageBox.critical(self, "Fejl", message)
 
-    def on_pdf_processing_finished(self):
+    def on_pdf_processing_finished(self, processor):
         """Håndter færdig PDF processering"""
         self.load_existing_data()
         self.update_status_bar()
@@ -1656,6 +1655,19 @@ class MainWindow(QMainWindow):
         for thread in self.threads[:]:
             if not thread.isRunning():
                 self.threads.remove(thread)
+
+    def upload_multiple(self):
+        """
+        Denne metode åbner dialogen til at uploade flere filer.
+        Brugeren kan tilføje PDF- og billedfiler, se status for hver, og starte upload-processen i en kø.
+        Efter upload afsluttes, opdateres dashboardet med de nye data.
+        """
+        dialog = MultiUploadDialog(self, self.db_path)
+        if dialog.exec_() == QDialog.Accepted:
+            # Efter at dialogen er lukket med accept,
+            # opdater dashboardet med de nye data fra databasen.
+            self.load_existing_data()
+            self.update_status_bar()
 
 
 class ImageProcessor(QThread):
@@ -1830,7 +1842,7 @@ def extract_products_with_gpt(text_content, client):
 
         logging.info("Sender forespørgsel til GPT")
         response = client.chat.completions.create(
-            model="gpt-4-turbo-preview",
+            model="gpt-4o-mini",
             messages=[
                 {
                     "role": "system",
@@ -2074,6 +2086,177 @@ class APIKeyDialog(QDialog):
 
     def get_api_key(self):
         return self.api_key_input.text().strip()
+
+
+class UploadItemWidget(QWidget):
+    def __init__(self, file_path, parent=None):
+        super().__init__(parent)
+        self.file_path = file_path  # Gemmer filstien for dette upload-item
+        self.processor = None  # Her lagres henvisningen til QThread (PDFProcessor/ImageProcessor)
+        self.init_ui()
+
+    def init_ui(self):
+        # Opret et vandret layout
+        self.layout = QHBoxLayout(self)
+        # Vis filnavnet (kun basename)
+        self.file_label = QLabel(os.path.basename(self.file_path))
+        self.layout.addWidget(self.file_label)
+        # Fjern knap for at tillade brugeren at fjerne filen
+        self.remove_button = QPushButton("Fjern")
+        self.layout.addWidget(self.remove_button)
+        # Progress bar som viser upload-progresjon, gemmes indtil processtart
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setMaximum(100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setFixedWidth(100)
+        self.progress_bar.hide()  # Skjul indtil upload begynder
+        self.layout.addWidget(self.progress_bar)
+        # Statuslabel der fortæller hvilken status filen er i (venter, upload, færdig, fejl osv.)
+        self.status_label = QLabel("Venter")
+        self.layout.addWidget(self.status_label)
+        self.setLayout(self.layout)
+
+    def update_progress(self, value):
+        # Opdaterer progress bar med den modtagne værdi
+        self.progress_bar.setValue(value)
+
+    def update_status(self, message):
+        # Opdater status label med den modtagne besked
+        self.status_label.setText(message)
+
+
+class MultiUploadDialog(QDialog):
+    def __init__(self, parent=None, db_path=None):
+        super().__init__(parent)
+        self.db_path = db_path  # Database stien, så de samme upload-funktioner kan anvendes
+        self.setWindowTitle("Upload Flere Filer")
+        self.setModal(True)
+        self.resize(600, 400)
+        self.upload_items = []  # Liste til at lagre UploadItemWidget objekter
+        self.current_upload_index = 0
+        self.upload_error_occurred = False  # Flag der indikerer fejl
+        self.setup_ui()
+
+    def setup_ui(self):
+        layout = QVBoxLayout(self)
+        # Tilføj "Tilføj Filer" knap
+        self.add_files_button = QPushButton("Tilføj Filer")
+        self.add_files_button.setToolTip("Tilføj PDF- eller billedfiler")
+        self.add_files_button.clicked.connect(self.add_files)
+        layout.addWidget(self.add_files_button)
+
+        # Opret et scroll-område til at vise listen af filer
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.file_list_widget = QWidget()
+        self.file_list_layout = QVBoxLayout(self.file_list_widget)
+        self.file_list_widget.setLayout(self.file_list_layout)
+        self.scroll_area.setWidget(self.file_list_widget)
+        layout.addWidget(self.scroll_area)
+
+        # Knapper til at starte upload eller annullere processen
+        button_layout = QHBoxLayout()
+        self.upload_button = QPushButton("Upload")
+        self.upload_button.setToolTip("Start upload af filerne i køen")
+        self.upload_button.clicked.connect(self.start_upload)
+        button_layout.addWidget(self.upload_button)
+        self.cancel_button = QPushButton("Annuller")
+        self.cancel_button.clicked.connect(self.reject)
+        button_layout.addWidget(self.cancel_button)
+        layout.addLayout(button_layout)
+        self.setLayout(layout)
+
+    def add_files(self):
+        # Åbn en dialog der tillader valg af eksisterende filer (PDF eller billeder)
+        file_dialog = QFileDialog(self)
+        file_dialog.setFileMode(QFileDialog.ExistingFiles)
+        file_dialog.setNameFilter("PDF Filer (*.pdf);;Image Filer (*.png *.jpg *.jpeg)")
+        if file_dialog.exec_():
+            files = file_dialog.selectedFiles()
+            for file_path in files:
+                # Opret et upload-item widget for hver fil valgt
+                item = UploadItemWidget(file_path)
+                # Tilknyt fjern-knappen, så den fjerner item fra listen i dialogen
+                item.remove_button.clicked.connect(lambda checked, item=item: self.remove_item(item))
+                self.upload_items.append(item)
+                self.file_list_layout.addWidget(item)
+
+    def remove_item(self, item):
+        # Fjern upload-item widget hvis brugeren trykker "Fjern"
+        if item in self.upload_items:
+            self.upload_items.remove(item)
+            item.setParent(None)
+            item.deleteLater()
+
+    def start_upload(self):
+        if not self.upload_items:
+            QMessageBox.warning(self, "Ingen filer", "Der er ingen filer at uploade.")
+            return
+
+        # Deaktiver muligheden for at tilføje flere filer og starte upload igen
+        self.add_files_button.setEnabled(False)
+        self.upload_button.setEnabled(False)
+        self.current_upload_index = 0
+        self.upload_error_occurred = False
+        # Start processen med at uploade den første fil i køen
+        self.process_next_file()
+
+    def process_next_file(self):
+        # Hvis vi er færdige med alle filer, vis en besked og luk dialogen positivt
+        if self.current_upload_index >= len(self.upload_items):
+            QMessageBox.information(self, "Upload færdig", "Alle filer er blevet uploaded.")
+            self.accept()
+            return
+
+        # Hent det nuværende upload-item
+        item = self.upload_items[self.current_upload_index]
+        file_path = item.file_path
+
+        # Bestem filtype og opret den relevante processor (PDFProcessor eller ImageProcessor)
+        if file_path.lower().endswith(".pdf"):
+            # PDF-fil: brug den eksisterende PDFProcessor
+            processor = PDFProcessor(file_path, self.db_path)
+        elif any(file_path.lower().endswith(ext) for ext in [".png", ".jpg", ".jpeg"]):
+            # Billedfil: brug den eksisterende ImageProcessor
+            processor = ImageProcessor(file_path, self.db_path)
+        else:
+            # Hvis filtypen ikke understøttes, opdater status og spring over filen
+            item.update_status("Ikke understøttet filtype")
+            self.current_upload_index += 1
+            QTimer.singleShot(1000, self.process_next_file)
+            return
+
+        # Vis progress bar for filen
+        item.progress_bar.show()
+        # Tilknyt processorens signaler til item
+        processor.progress.connect(lambda value, it=item: it.update_progress(value))
+        processor.status.connect(lambda msg, it=item: it.update_status(msg))
+        processor.error.connect(lambda err, it=item: self.handle_processor_error(err, it))
+        # Når processor er færdig, fortsæt med næste fil
+        processor.finished.connect(lambda it=item: self.on_processor_finished(it))
+        # Start processor-tråden
+        processor.start()
+        # Gem processor-referencen i item for at forhindre, at den bliver garbage collected
+        item.processor = processor
+
+    def handle_processor_error(self, error, item):
+        # Hvis der opstår en fejl under upload, vis fejlbesked og stop processen
+        item.update_status(f"Fejl: {error}")
+        self.upload_error_occurred = True
+        QMessageBox.critical(self, "Upload Fejl",
+                             f"Fejl ved upload af fil {os.path.basename(item.file_path)}: {error}")
+        self.reject()
+
+    def on_processor_finished(self, item):
+        # Hvis en fejl opstod, skal ingen yderligere filer processeres
+        if self.upload_error_occurred:
+            return
+        # Marker filen som færdig med upload
+        item.update_status("Upload færdig")
+        item.progress_bar.setValue(100)
+        # Gå videre til næste fil efter en kort forsinkelse
+        self.current_upload_index += 1
+        QTimer.singleShot(500, self.process_next_file)
 
 
 if __name__ == "__main__":
